@@ -5,7 +5,6 @@ import com.growmighty.lectures.firstday.tangledmonolith.payment.PaymentRepositor
 import com.growmighty.lectures.firstday.tangledmonolith.payment.PaymentStatus;
 import com.growmighty.lectures.firstday.tangledmonolith.product.Product;
 import com.growmighty.lectures.firstday.tangledmonolith.product.ProductRepository;
-import com.growmighty.lectures.firstday.tangledmonolith.user.User;
 import com.growmighty.lectures.firstday.tangledmonolith.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,8 +25,9 @@ public class OrderService {
 
     @Transactional
     public OrderResult placeOrder(Long userId, List<OrderController.OrderLine> items) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 유저입니다. userId=" + userId));
+        if (!userRepository.existsById(userId)) {
+            throw new IllegalArgumentException("존재하지 않는 유저입니다. userId=" + userId);
+        }
 
         if (items == null || items.isEmpty()) {
             throw new IllegalStateException("주문할 상품이 없습니다.");
@@ -48,21 +48,20 @@ public class OrderService {
             }
             product.setStockQuantity(product.getStockQuantity() - quantity);
 
-            OrderItem orderItem = OrderItem.create(product, quantity);
+            OrderItem orderItem = OrderItem.create(product.getId(), product.getName(), product.getPrice(), quantity);
             orderItems.add(orderItem);
 
-            BigDecimal lineAmount = product.getPrice().multiply(BigDecimal.valueOf(quantity));
-            totalAmount = totalAmount.add(lineAmount);
+            totalAmount = totalAmount.add(orderItem.getLineAmount());
         }
 
-        Order order = Order.create(user, orderItems);
+        Order order = Order.create(userId, orderItems);
         order.setTotalAmount(totalAmount);
 
         Payment payment = Payment.ready(totalAmount);
         payment.setStatus(PaymentStatus.PAID);
         paymentRepository.save(payment);
 
-        order.assignPayment(payment);
+        order.assignPayment(payment.getId());
         order.setStatus(OrderStatus.PAID);
 
         Order saved = orderRepository.save(order);
