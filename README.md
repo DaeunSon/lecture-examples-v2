@@ -37,8 +37,21 @@
 
 **도전**
 
-- [ ] 한 장바구니에 담을 수 있는 상품 종류 상한(예: 50종) 규칙 추가 + 테스트
-- [ ] "이 규칙은 Entity 에 둘까, Domain Service 에 둘까?" 판단 근거를 PR 본문에 3줄로
+- [x] 한 장바구니에 담을 수 있는 상품 종류 상한(예: 50종) 규칙 추가 + 테스트
+- [x] "이 규칙은 Entity 에 둘까, Domain Service 에 둘까?" 판단 근거를 PR 본문에 3줄로
+
+## 풀이 노트
+
+- `Cart` 가 애그리거트 루트: `addItem` / `changeQuantity` / `removeItem` 으로만 항목을 다룬다. `CartItem` 생성·수량 변경 메서드는 package-private 이고, `getItems()` 는 수정 불가 목록을 돌려준다.
+- `Product.decreaseStock` — 0 이하 수량은 `IllegalArgumentException`, 재고 부족은 `IllegalStateException` (재고는 그대로).
+- `Payment.changeStatus` 제거 → `approve()` / `fail()`. READY 가 아니면 `IllegalStateException`.
+- 도전: 상품 종류 상한 `Cart.MAX_ITEM_KINDS = 50` — 새 상품만 막고, 이미 담긴 상품의 수량 합산은 허용.
+
+### 이 규칙은 Entity 에 둘까, Domain Service 에 둘까?
+
+1. 수량 ≥ 1 · 같은 상품 합산 · 50종 상한 · READY 에서만 전이는 **그 애그리거트 하나의 상태만 보고** 판단할 수 있으므로 Entity(애그리거트 루트) 안에 둔다.
+2. 반대로 "재고가 있는 상품만 담기"처럼 **다른 애그리거트(Product)의 상태가 필요한 규칙**은 Cart 가 Product 를 알면 안 되므로 Domain Service 로 뺀다.
+3. 기준: 규칙이 필요로 하는 데이터가 한 애그리거트 경계 안에 있으면 Entity, 경계를 넘나들면 Domain Service.
 
 ## 완료 기준
 
