@@ -17,15 +17,39 @@
 
 **필수**
 
-- [ ] `Cart.user`, `CartItem.product` → `userId`, `productId` (Long)
-- [ ] `Seller.user`, `Seller.products` ↔ `Product.seller` 양방향 참조 제거 — 어느 쪽이 ID 를 들고 있어야 하는지 근거와 함께
-- [ ] `Order.user`, `Order.payment` → `userId`, `paymentId`
-- [ ] `OrderItem.product` → `productId` + **주문 당시 상품명·가격 스냅샷** (수업에서 함께 한 부분 — 본인 코드로 이어서 해도 됩니다)
-- [ ] `DataInitializer`, `OrderService` 를 바뀐 구조에 맞게 고쳐 `./gradlew bootRun` 후 주문이 성공
+- [x] `Cart.user`, `CartItem.product` → `userId`, `productId` (Long)
+- [x] `Seller.user`, `Seller.products` ↔ `Product.seller` 양방향 참조 제거 — 어느 쪽이 ID 를 들고 있어야 하는지 근거와 함께
+- [x] `Order.user`, `Order.payment` → `userId`, `paymentId`
+- [x] `OrderItem.product` → `productId` + **주문 당시 상품명·가격 스냅샷** (수업에서 함께 한 부분 — 본인 코드로 이어서 해도 됩니다)
+- [x] `DataInitializer`, `OrderService` 를 바뀐 구조에 맞게 고쳐 `./gradlew bootRun` 후 주문이 성공
 
 **도전**
 
-- [ ] 경계마다 "스냅샷이 필요한가?"를 표로 정리 (예: 주문 → 상품 가격은 필요 / 장바구니 → 상품 가격은 불필요, 왜?)
+- [x] 경계마다 "스냅샷이 필요한가?"를 표로 정리 (예: 주문 → 상품 가격은 필요 / 장바구니 → 상품 가격은 불필요, 왜?)
+
+## 풀이 노트
+
+### Seller ↔ Product — 누가 ID 를 들고 있나?
+
+`Product.sellerId` 가 판매자 ID 를 들고, `Seller.products` 컬렉션은 제거했다.
+
+- **의존 방향**: 상품은 판매자 없이 존재할 수 없지만, 판매자는 상품 없이도 존재한다 → `product → seller` 방향이 자연스럽다.
+- **DB 구조와 일치**: 1:N 관계의 FK 는 원래 N 쪽(`products.seller_id`)에 있다.
+- **무한히 커지는 컬렉션 방지**: 판매자가 상품 목록을 들면 상품이 늘수록 Seller 가 무거워진다. 필요하면 `ProductRepository.findBySellerId()` 로 조회한다.
+
+### 경계별 스냅샷 필요 여부 (도전)
+
+| 경계 | 참조 | 스냅샷 | 이유 |
+|---|---|---|---|
+| 주문 → 상품 | `OrderItem.productId` | **필요** (상품명·가격) | 주문은 "그때 그 가격으로 산" 거래 기록이다. 상품 가격·이름이 바뀌거나 상품이 삭제돼도 주문 내역·결제 금액·환불 기준은 바뀌면 안 된다. |
+| 장바구니 → 상품 | `CartItem.productId` | 불필요 | 장바구니는 아직 확정되지 않은 "의도"다. 가격은 결제 시점의 현재 가격이 맞고, 담아둔 시점 가격을 저장하면 오히려 틀린 금액을 보여준다. |
+| 주문 → 유저 | `Order.userId` | 선택적 (배송지·수령인) | 회원 정보 자체는 최신이면 충분하지만, 배송지·수령인 연락처는 주문 시점 값이 보존돼야 한다. 지금 모델엔 배송지가 없어 ID 만 둔다. |
+| 주문 → 결제 | `Order.paymentId` | 불필요 | 결제는 금액·상태를 스스로 보관하는 독립된 기록이다. 결제 금액은 `Payment.amount` 에 이미 확정 저장된다. |
+| 장바구니 → 유저 | `Cart.userId` | 불필요 | 장바구니 주인이 누구인지만 알면 된다. |
+| 판매자 → 유저 | `Seller.userId` | 불필요 | 계정 연결 관계일 뿐, 시점 보존이 필요한 값이 없다. |
+| 상품 → 판매자 | `Product.sellerId` | 불필요 | 판매자 상호 등은 항상 최신이 맞다. (단, 주문 시 판매자 상호까지 보존해야 한다면 주문 쪽 스냅샷에 추가) |
+
+> 기준: **"참조 대상이 나중에 바뀌었을 때, 내 기록도 따라 바뀌면 안 되는가?"** — 그렇다면 스냅샷이 필요하다.
 
 ## 완료 기준 — 검증 테스트
 

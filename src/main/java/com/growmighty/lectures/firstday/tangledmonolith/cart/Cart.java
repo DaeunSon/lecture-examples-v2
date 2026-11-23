@@ -1,6 +1,5 @@
 package com.growmighty.lectures.firstday.tangledmonolith.cart;
 
-import com.growmighty.lectures.firstday.tangledmonolith.user.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -21,13 +20,13 @@ public class Cart {
     @OneToMany(mappedBy = "cart", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<CartItem> items = new ArrayList<>();
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
-    private User user;
+    // user 도메인은 ID 로만 참조한다. (한 유저당 장바구니 하나)
+    @Column(name = "user_id", nullable = false, unique = true)
+    private Long userId;
 
-    public static Cart create(User user) {
+    public static Cart create(Long userId) {
         Cart cart = new Cart();
-        cart.user = user;
+        cart.userId = userId;
         return cart;
     }
 
