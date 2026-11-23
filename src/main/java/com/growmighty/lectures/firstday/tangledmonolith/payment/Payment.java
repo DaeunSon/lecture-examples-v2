@@ -30,7 +30,21 @@ public class Payment {
         return payment;
     }
 
-    public void changeStatus(PaymentStatus status) {
-        this.status = status;
+    /** 결제 승인: READY → PAID */
+    public void approve() {
+        transitionFromReady(PaymentStatus.PAID);
+    }
+
+    /** 결제 실패: READY → FAILED */
+    public void fail() {
+        transitionFromReady(PaymentStatus.FAILED);
+    }
+
+    private void transitionFromReady(PaymentStatus next) {
+        if (this.status != PaymentStatus.READY) {
+            throw new IllegalStateException(
+                    "READY 상태에서만 " + next + " 로 바꿀 수 있습니다. 현재 상태=" + this.status);
+        }
+        this.status = next;
     }
 }
